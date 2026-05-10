@@ -11,38 +11,27 @@ gaps: one before the first item, one between each pair, and one after the last.
 def find_best_packing(length: float) -> tuple[int, int, float]:
     """
     Return (n50, n30, remainder) minimizing remainder.
-    Tie-break: prefer the combination with more total items.
+    Tie-break: prefer the combination with fewer total items.
     """
-    best_n50, best_n30 = 0, 0
-    min_remainder = length
+    def candidate(n50: int) -> tuple[int, int, float]:
+        space = length - n50 * 50
+        n30 = int(space // 30)
+        return n50, n30, space - n30 * 30
 
-    for n50 in range(int(length // 50) + 1):
-        space_after_50s = length - n50 * 50
-        n30 = int(space_after_50s // 30)
-        remainder = space_after_50s - n30 * 30
-
-        is_better = remainder < min_remainder
-        is_equal_but_fewer_items = (
-            remainder == 0
-            and min_remainder == 0
-            and (n50 + n30) < (best_n50 + best_n30)
-        )
-
-        if is_better or is_equal_but_fewer_items:
-            min_remainder = remainder
-            best_n50, best_n30 = n50, n30
-
-    return best_n50, best_n30, min_remainder
+    return min(
+        (candidate(n50) for n50 in range(int(length // 50) + 1)),
+        key=lambda c: (c[2], c[0] + c[1]),
+    )
 
 
-def format_layout(n50: int, n30: int, gap_unit: float, edge_gap: float) -> str:
-    items = ["50"] * n50 + ["30"] * n30
+def format_layout(items: list[int], gap_unit: float, edge_gap: float) -> str:
     eg = f"[{edge_gap:.4f}]"
     ig = f"[{gap_unit:.4f}]"
     parts = [eg]
+    last = len(items) - 1
     for i, size in enumerate(items):
         parts.append(f"[{size}]")
-        parts.append(eg if i == len(items) - 1 else ig)
+        parts.append(eg if i == last else ig)
     return " ".join(parts)
 
 
@@ -63,11 +52,11 @@ def main() -> None:
         return
 
     n50, n30, remainder = find_best_packing(length)
-    total_items = n50 + n30
-    gap_unit = remainder / total_items if total_items > 0 else 0
+    items = [50] * n50 + [30] * n30
+    total_items = len(items)
+    items_length = sum(items)
+    gap_unit = remainder / total_items
     edge_gap = gap_unit / 2
-
-    items_length = n50 * 50 + n30 * 30
 
     print()
     print("=" * 50)
@@ -80,29 +69,25 @@ def main() -> None:
     print(f"  Items coverage    : {items_length} / {length}  ({items_length/length*100:.2f}%)")
     print(f"  Remainder         : {remainder:.6f}")
     print(f"  Internal gap      : {gap_unit:.6f}  ({total_items - 1} gaps between items)")
-    print(f"  Edge gap (×2)     : {edge_gap:.6f}  (start + end = 1 internal gap)")
+    print(f"  Edge gap (x2)     : {edge_gap:.6f}  (start + end = 1 internal gap)")
     print("=" * 50)
     print()
     print("Layout  ( [gap] [item] [gap] ... ):")
     print()
-    print("  " + format_layout(n50, n30, gap_unit, edge_gap))
+    print("  " + format_layout(items, gap_unit, edge_gap))
     print()
 
-    # Position table
-    items = [50] * n50 + [30] * n30
     print(f"  {'#':<5} {'Size':<6} {'Start':>10} {'End':>10} {'Center':>10}")
     print(f"  {'-'*5} {'-'*6} {'-'*10} {'-'*10} {'-'*10}")
     cursor = edge_gap
-    for i, size in enumerate(items):
-        start = cursor
-        end = cursor + size
-        center = (start + end) / 2
-        print(f"  {i+1:<5} {size:<6} {start:>10.4f} {end:>10.4f} {center:>10.4f}")
-        cursor = end + (gap_unit if i < len(items) - 1 else 0)
+    for i, size in enumerate(items, 1):
+        start, end = cursor, cursor + size
+        print(f"  {i:<5} {size:<6} {start:>10.4f} {end:>10.4f} {(start+end)/2:>10.4f}")
+        cursor = end + gap_unit
     print()
 
     reconstructed = items_length + gap_unit * (total_items - 1) + edge_gap * 2
-    print(f"  Verification: {items_length} + {gap_unit:.6f}×{total_items - 1} + {edge_gap:.6f}×2 = {reconstructed:.6f}  ✓")
+    print(f"  Verification: {items_length} + {gap_unit:.6f}x{total_items - 1} + {edge_gap:.6f}x2 = {reconstructed:.6f}  [OK]")
     print()
 
 
