@@ -47,8 +47,8 @@ Layout  ( [gap] [item] [gap] ... ):
 
 ## How it works
 
-- **Minimum gap first**: all combinations of size-50 and size-30 items are evaluated; the one with the smallest remainder (unused space) is selected.
-- **Tie-break**: if multiple combinations result in zero remainder (perfect fit), the one with the fewest items is preferred.
+- **Smallest gap unit first**: all combinations of size-50 and size-30 items are evaluated; the one with the smallest gap unit (remainder ÷ total items) is selected. When the same remainder can be spread across more items, the individual gaps are smaller — that combination wins.
+- **Tie-break**: if multiple combinations produce the same gap unit (including a perfect fit with zero remainder), the one with the fewest items is preferred.
 - **Gap distribution**: the remaining space is split into equal internal gaps between items, with half-gaps at each end.
 
 ## Input constraints
