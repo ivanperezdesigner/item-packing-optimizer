@@ -10,7 +10,7 @@ gaps: one before the first item, one between each pair, and one after the last.
 
 def find_best_packing(length: float) -> tuple[int, int, float]:
     """
-    Return (n50, n30, remainder) minimizing remainder.
+    Return (n50, n30, remainder) minimizing gap_unit (= remainder / total_items).
     Tie-break: prefer the combination with fewer total items.
     """
     def candidate(n50: int) -> tuple[int, int, float]:
@@ -20,7 +20,7 @@ def find_best_packing(length: float) -> tuple[int, int, float]:
 
     return min(
         (candidate(n50) for n50 in range(int(length // 50) + 1)),
-        key=lambda c: (c[2], c[0] + c[1]),
+        key=lambda c: (c[2] / (c[0] + c[1]), c[0] + c[1]),
     )
 
 

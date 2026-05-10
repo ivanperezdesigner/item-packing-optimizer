@@ -16,7 +16,7 @@ Single-file Python optimization tool (`item_packing.py`) that solves a 1D bin-pa
 
 ## Core Logic (`item_packing.py`)
 
-- `find_best_packing(length)` — brute-force search over all valid (n50, n30) combinations; minimizes remainder, tie-breaks by preferring more total items
+- `find_best_packing(length)` — brute-force search over all valid (n50, n30) combinations; minimizes gap_unit (remainder / total_items), tie-breaks by preferring fewer total items
 - `format_layout(n50, n30, gap_unit, edge_gap)` — returns a string visualization of the layout
 - `main()` — CLI entry point with input validation and a detailed position table output
 
