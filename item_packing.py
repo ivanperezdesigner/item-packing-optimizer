@@ -8,19 +8,25 @@ gaps: one before the first item, one between each pair, and one after the last.
 """
 
 
-def find_best_packing(length: float) -> tuple[int, int, float]:
+def find_best_packing(length: float, mode: str = "gap") -> tuple[int, int, float]:
     """
-    Return (n50, n30, remainder) minimizing gap_unit (= remainder / total_items).
-    Tie-break: prefer the combination with fewer total items.
+    Return (n50, n30, remainder) using the given mode:
+      "gap"   — minimize gap_unit (remainder / total_items), tie-break fewer items.
+      "items" — minimize total items, tie-break smaller gap_unit.
     """
     def candidate(n50: int) -> tuple[int, int, float]:
         space = length - n50 * 50
         n30 = int(space // 30)
         return n50, n30, space - n30 * 30
 
+    if mode == "items":
+        key = lambda c: (c[0] + c[1], c[2] / (c[0] + c[1]))
+    else:
+        key = lambda c: (c[2] / (c[0] + c[1]), c[0] + c[1])
+
     return min(
         (candidate(n50) for n50 in range(int(length // 50) + 1)),
-        key=lambda c: (c[2] / (c[0] + c[1]), c[0] + c[1]),
+        key=key,
     )
 
 
@@ -36,6 +42,12 @@ def format_layout(items: list[int], gap_unit: float, edge_gap: float) -> str:
 
 
 def main() -> None:
+    raw = input("Prioritize (G)ap size or (I)tem count? [G/I, default G]: ").strip().upper()
+    mode = "items" if raw == "I" else "gap"
+    mode_label = "Min items" if mode == "items" else "Min gap"
+
+    print()
+
     try:
         length = float(input("Enter the total length: "))
     except ValueError:
@@ -51,7 +63,7 @@ def main() -> None:
         print("No items can be placed.")
         return
 
-    n50, n30, remainder = find_best_packing(length)
+    n50, n30, remainder = find_best_packing(length, mode)
     items = [50] * n50 + [30] * n30
     total_items = len(items)
     items_length = sum(items)
@@ -62,6 +74,7 @@ def main() -> None:
     print("=" * 50)
     print("  PACKING RESULT")
     print("=" * 50)
+    print(f"  Optimization      : {mode_label}")
     print(f"  Total length      : {length}")
     print(f"  Items size 50     : {n50}  ({n50 * 50} units)")
     print(f"  Items size 30     : {n30}  ({n30 * 30} units)")
