@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Packing Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; background: #fafafa; font-family: 'DM Mono', monospace; color: #1a1a1a; padding: 48px 32px 80px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .fade-up { animation: fadeUp .35s ease both; }
+
+  .page-title { font-size: 13px; letter-spacing: .15em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; color: #111; margin-bottom: 40px; }
+
+  .section { margin-bottom: 40px; }
+  .label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #999; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+
+  .mode-row { display: flex; gap: 8px; margin-bottom: 24px; }
+  .mode-btn {
+    font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .08em;
+    text-transform: uppercase; border-radius: 4px; padding: 8px 16px;
+    cursor: pointer; transition: all .15s;
+    background: transparent; color: #999; border: 1px solid #ddd;
+  }
+  .mode-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  .input-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  input[type="number"] {
+    font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; width: 160px;
+    border: none; border-bottom: 2px solid #1a1a1a; background: transparent;
+    padding: 6px 0; outline: none; color: #1a1a1a; letter-spacing: .02em;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  .btn-primary {
+    font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: .1em;
+    text-transform: uppercase; background: #1a1a1a; color: #fff;
+    border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer;
+  }
+  .btn-outline {
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; background: transparent; color: #888;
+    border: 1px solid #ddd; border-radius: 4px; padding: 5px 12px; cursor: pointer;
+  }
+
+  .error { font-size: 12px; color: #c0392b; margin-bottom: 16px; }
+
+  hr.divider { border: none; border-top: 1px solid #eee; margin: 0 0 32px; }
+
+  .metrics-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 1px; background: #e8e8e8; border: 1px solid #e8e8e8;
+    border-radius: 8px; overflow: hidden;
+  }
+  .metric-cell { background: #fafafa; padding: 16px 18px; }
+  .metric-val { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 2px; }
+  .metric-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #999; }
+  .metric-sub { font-size: 11px; color: #bbb; margin-top: 2px; }
+
+  .mode-badge {
+    font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    background: #f0f0f0; color: #888; border-radius: 3px; padding: 2px 8px;
+  }
+
+  #layout-svg { display: block; border-radius: 6px; border: 1px solid #e8e8e8; overflow: hidden; }
+
+  .legend { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; }
+  .legend-item { font-size: 11px; color: #999; display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #d8d8d8; display: inline-block; flex-shrink: 0; }
+
+  .table-wrap { max-height: 360px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  colgroup col:first-child { width: 36px; }
+  colgroup col:nth-child(2) { width: 68px; }
+  th {
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #aaa;
+    padding: 8px 0 6px; border-bottom: 1px solid #eee;
+    position: sticky; top: 0; background: #fafafa; z-index: 1;
+  }
+  th.left { text-align: left; }
+  th.right { text-align: right; }
+  th:first-child { padding-left: 12px; }
+  td { padding: 7px 0; border-bottom: 1px solid #f4f4f4; color: #444; }
+  td.num { text-align: right; padding-right: 8px; color: #333; font-variant-numeric: tabular-nums; }
+  td:first-child { color: #ccc; padding-left: 12px; }
+  .tag { display: inline-block; border-radius: 3px; padding: 1px 7px; font-size: 11px; font-weight: 600; }
+  .tag-50 { background: #1a1a1a; color: #fff; }
+  .tag-30 { background: #555; color: #fff; }
+
+  .verify {
+    background: #f4f4f4; border-radius: 6px; padding: 14px 18px;
+    font-size: 12px; color: #666; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .verify .sep { color: #ccc; }
+  .verify strong { color: #111; }
+  .ok-badge {
+    background: #1a1a1a; color: #fff; font-size: 10px; letter-spacing: .1em;
+    padding: 2px 8px; border-radius: 3px; text-transform: uppercase;
+  }
+
+  #output { display: none; }
+</style>
+</head>
+<body>
+
+<p class="page-title">Packing optimizer</p>
+<h1>Item layout calculator</h1>
+
+<div class="section">
+  <div class="label">Optimization mode</div>
+  <div class="mode-row">
+    <button class="mode-btn active" data-mode="gap" onclick="setMode('gap')">Min gap size</button>
+    <button class="mode-btn" data-mode="items" onclick="setMode('items')">Min item count</button>
+  </div>
+  <div class="label">Total length</div>
+  <div class="input-row">
+    <input type="number" id="lenInput" value="160" placeholder="e.g. 160" onkeydown="if(event.key==='Enter') calculate()">
+    <button class="btn-primary" onclick="calculate()">Calculate</button>
+  </div>
+  <div class="error" id="errMsg" style="display:none"></div>
+</div>
+
+<div id="output">
+  <hr class="divider">
+
+  <div class="section">
+    <div class="label">
+      Optimal result
+      <span class="mode-badge" id="modeBadge">Min gap size</span>
+    </div>
+    <div class="metrics-grid" id="metricsGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="label">Visual layout</div>
+    <div id="layoutContainer" style="width:100%">
+      <svg id="layout-svg" height="44"></svg>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#1a1a1a"></span>item 50</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#555"></span>item 30</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#7F77DD;border-color:#7F77DD"></span>inner gap</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#C4C0F5;border-color:#C4C0F5"></span>edge</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="label">
+      Item positions
+      <span id="itemCount" style="color:#ccc;font-weight:400"></span>
+      <button class="btn-outline" onclick="downloadCSV()">↓ CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col><col><col><col><col></colgroup>
+        <thead>
+          <tr>
+            <th class="left">#</th>
+            <th class="left">Size</th>
+            <th class="right">Start</th>
+            <th class="right">End</th>
+            <th class="right">Center</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="label">Verification</div>
+    <div class="verify" id="verifyRow"></div>
+  </div>
+</div>
+
+<script>
+let currentMode = "gap";
+let currentResult = null;
+
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+  if (currentResult) calculate();
+}
+
+function findBestPacking(length, mode) {
+  function candidate(n50) {
+    const space = length - n50 * 50;
+    const n30 = Math.floor(space / 30);
+    return [n50, n30, space - n30 * 30];
+  }
+  const max50 = Math.floor(length / 50);
+  const candidates = [];
+  for (let n = 0; n <= max50; n++) candidates.push(candidate(n));
+  candidates.sort((a, b) => {
+    const ga = (a[0]+a[1]) > 0 ? a[2]/(a[0]+a[1]) : Infinity;
+    const gb = (b[0]+b[1]) > 0 ? b[2]/(b[0]+b[1]) : Infinity;
+    if (mode === "items") {
+      const ta = a[0]+a[1], tb = b[0]+b[1];
+      if (ta !== tb) return ta - tb;
+      return ga - gb;
+    }
+    if (Math.abs(ga - gb) > 1e-9) return ga - gb;
+    return (a[0]+a[1]) - (b[0]+b[1]);
+  });
+  return candidates[0];
+}
+
+function calculate() {
+  const raw = document.getElementById("lenInput").value;
+  const length = parseFloat(raw);
+  const errEl = document.getElementById("errMsg");
+  errEl.style.display = "none";
+
+  if (isNaN(length) || length <= 0) { errEl.textContent = "Please enter a positive number."; errEl.style.display = "block"; return; }
+  if (length < 30) { errEl.textContent = "Minimum length is 30 (smallest item size)."; errEl.style.display = "block"; return; }
+
+  const [n50, n30, remainder] = findBestPacking(length, currentMode);
+  const items = [...Array(n50).fill(50), ...Array(n30).fill(30)];
+  const total = items.length;
+  const itemsLen = n50*50 + n30*30;
+  const gapUnit = remainder / total;
+  const edgeGap = gapUnit / 2;
+  const coverage = (itemsLen / length) * 100;
+  const positions = [];
+  let cursor = edgeGap;
+  items.forEach(sz => {
+    positions.push({ idx: positions.length+1, size: sz, start: cursor, end: cursor+sz, center: cursor+sz/2 });
+    cursor += sz + gapUnit;
+  });
+  const recon = itemsLen + gapUnit*(total-1) + edgeGap*2;
+  currentResult = { length, n50, n30, items, total, itemsLen, gapUnit, edgeGap, coverage, remainder, positions, recon };
+
+  renderAll();
+}
+
+function renderAll() {
+  const r = currentResult;
+  const out = document.getElementById("output");
+  out.style.display = "block";
+  out.classList.remove("fade-up");
+  void out.offsetWidth;
+  out.classList.add("fade-up");
+
+  document.getElementById("modeBadge").textContent = currentMode === "items" ? "Min item count" : "Min gap size";
+  document.getElementById("itemCount").textContent = `(${r.total})`;
+
+  const metrics = [
+    { val: r.n50, lbl: "Items ×50", sub: `${r.n50*50} units` },
+    { val: r.n30, lbl: "Items ×30", sub: `${r.n30*30} units` },
+    { val: r.total, lbl: "Total items", sub: "" },
+    { val: r.coverage.toFixed(1)+"%", lbl: "Coverage", sub: `${r.itemsLen} / ${r.length}` },
+    { val: r.gapUnit.toFixed(4), lbl: "Inner gap", sub: `${r.total-1} gaps` },
+    { val: r.edgeGap.toFixed(4), lbl: "Edge gap ×2", sub: "= 1 inner gap" },
+  ];
+  document.getElementById("metricsGrid").innerHTML = metrics.map(m => `
+    <div class="metric-cell">
+      <div class="metric-val">${m.val}</div>
+      <div class="metric-lbl">${m.lbl}</div>
+      ${m.sub ? `<div class="metric-sub">${m.sub}</div>` : ""}
+    </div>
+  `).join("");
+
+  renderBar();
+
+  document.getElementById("tableBody").innerHTML = r.positions.map((p, i) => `
+    <tr style="opacity:0;animation:fadeUp .25s ease ${Math.min(i,30)*18}ms both">
+      <td>${p.idx}</td>
+      <td><span class="tag tag-${p.size}">${p.size}</span></td>
+      <td class="num">${p.start.toFixed(4)}</td>
+      <td class="num">${p.end.toFixed(4)}</td>
+      <td class="num">${p.center.toFixed(4)}</td>
+    </tr>
+  `).join("");
+
+  document.getElementById("verifyRow").innerHTML = `
+    <span>${r.itemsLen}</span>
+    <span class="sep">+</span>
+    <span>${r.gapUnit.toFixed(6)} × ${r.total-1}</span>
+    <span class="sep">+</span>
+    <span>${r.edgeGap.toFixed(6)} × 2</span>
+    <span class="sep">=</span>
+    <strong>${r.recon.toFixed(6)}</strong>
+    <span class="ok-badge">OK</span>
+  `;
+}
+
+function renderBar() {
+  const r = currentResult;
+  const container = document.getElementById("layoutContainer");
+  const W = container.getBoundingClientRect().width;
+  const H = 44;
+  const colors = { i50: "#1a1a1a", i30: "#555", gap: "#7F77DD", edge: "#C4C0F5" };
+
+  const rawSegs = [];
+  rawSegs.push({ type: "edge", pct: r.edgeGap / r.length });
+  r.items.forEach((sz, i) => {
+    rawSegs.push({ type: sz===50 ? "i50" : "i30", pct: sz/r.length, label: String(sz) });
+    if (i < r.items.length-1) rawSegs.push({ type: "gap", pct: r.gapUnit/r.length });
+  });
+  rawSegs.push({ type: "edge", pct: r.edgeGap/r.length });
+
+  const N = rawSegs.length;
+  const GAP = N > 60 ? 1 : 2;
+  const usable = Math.max(W - GAP*(N-1), 1);
+  const minPx = 1.5;
+  let widths = rawSegs.map(s => Math.max(s.pct * usable, minPx));
+  const wSum = widths.reduce((a,b)=>a+b,0);
+  if (wSum > usable) widths = widths.map(w => w/wSum*usable);
+
+  let x = 0;
+  let svgContent = "";
+  widths.forEach((w, i) => {
+    const s = rawSegs[i];
+    const fill = colors[s.type];
+    const rx = (s.type==="i50"||s.type==="i30") ? 3 : 0;
+    svgContent += `<rect x="${x.toFixed(2)}" y="1" width="${Math.max(w,0.5).toFixed(2)}" height="${H-2}" fill="${fill}" rx="${rx}"/>`;
+    if (s.label && w > 18) {
+      svgContent += `<text x="${(x+w/2).toFixed(2)}" y="${H/2}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-family="'DM Mono',monospace" font-weight="500">${s.label}</text>`;
+    }
+    x += w + GAP;
+  });
+
+  const svg = document.getElementById("layout-svg");
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = svgContent;
+}
+
+function downloadCSV() {
+  if (!currentResult) return;
+  const r = currentResult;
+  const lines = [
+    ["#","Size","Start","End","Center"],
+    ...r.positions.map(p => [p.idx, p.size, p.start.toFixed(4), p.end.toFixed(4), p.center.toFixed(4)]),
+  ];
+  const csv = lines.map(row => row.join(",")).join("\n");
+  const b64 = btoa(unescape(encodeURIComponent(csv)));
+  const a = document.createElement("a");
+  a.href = `data:text/csv;base64,${b64}`;
+  a.download = `packing-${r.length}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+window.addEventListener("resize", () => { if (currentResult) renderBar(); });
+
+calculate();
+</script>
+</body>
+</html>
