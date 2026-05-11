@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Item Packing Optimizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f4f4f4;
+      color: #111;
+      min-height: 100vh;
+      padding: 2.5rem 1rem;
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    h1 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 2rem;
+    }
+
+    /* ── controls ── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 1.75rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    label {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+    }
+
+    select, input[type="number"] {
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      padding: 0.5rem 0.7rem;
+      border: 1px solid #ddd;
+      background: #fff;
+      color: #111;
+      border-radius: 2px;
+      outline: none;
+      appearance: none;
+    }
+
+    select { width: 160px; cursor: pointer; }
+    input[type="number"] { width: 150px; }
+
+    select:focus, input:focus { border-color: #111; }
+
+    button {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.55rem 1.4rem;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #333; }
+
+    /* ── error ── */
+    .error {
+      font-size: 0.82rem;
+      color: #c00;
+      margin-bottom: 1rem;
+      min-height: 1.2em;
+    }
+
+    /* ── result ── */
+    .result { display: none; }
+    .result.visible { display: block; }
+
+    /* ── stats ── */
+    .stats {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 2px;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      padding: 0.5rem 0.9rem;
+      border-bottom: 1px solid #f2f2f2;
+    }
+    .stat:last-child { border-bottom: none; }
+
+    .stat-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #aaa;
+      white-space: nowrap;
+    }
+
+    .stat-value {
+      font-family: 'Courier New', monospace;
+      font-size: 0.88rem;
+      color: #111;
+      text-align: right;
+    }
+
+    /* ── visual bar ── */
+    .section-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 0.5rem;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.2rem;
+      margin-bottom: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.72rem;
+      color: #888;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 10px;
+      border-radius: 1px;
+    }
+
+    .bar {
+      display: flex;
+      height: 40px;
+      width: 100%;
+      border: 1px solid #e0e0e0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 1.75rem;
+    }
+
+    .seg-gap { background: #ebebeb; }
+    .seg-50  { background: #1a1a1a; }
+    .seg-30  { background: #999; }
+
+    /* ── table ── */
+    .table-wrap {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 2px;
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th {
+      font-family: system-ui;
+      font-size: 0.67rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #aaa;
+      font-weight: 500;
+      text-align: right;
+      padding: 0.5rem 0.9rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    th:first-child, th:nth-child(2) { text-align: left; }
+
+    td {
+      font-family: 'Courier New', monospace;
+      font-size: 0.83rem;
+      text-align: right;
+      padding: 0.38rem 0.9rem;
+      border-bottom: 1px solid #f7f7f7;
+      color: #222;
+    }
+    td:first-child { text-align: left; color: #bbb; }
+    td:nth-child(2) { text-align: left; }
+
+    tr:last-child td { border-bottom: none; }
+
+    .chip {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .chip-50 { background: #1a1a1a; }
+    .chip-30 { background: #999; }
+
+    /* ── verification ── */
+    .verification {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Item Packing Optimizer</h1>
+
+  <div class="controls">
+    <div class="field">
+      <label>Optimize for</label>
+      <select id="mode">
+        <option value="gap">Min gap size</option>
+        <option value="items">Min item count</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Total length</label>
+      <input type="number" id="length" placeholder="e.g. 386.08" step="any" min="30">
+    </div>
+    <button onclick="calculate()">Calculate</button>
+  </div>
+
+  <div class="error" id="error"></div>
+
+  <div class="result" id="result">
+
+    <div class="stats" id="stats"></div>
+
+    <div class="section-label">Layout</div>
+    <div class="legend">
+      <div class="legend-item"><div class="swatch" style="background:#1a1a1a"></div>Size 50</div>
+      <div class="legend-item"><div class="swatch" style="background:#999"></div>Size 30</div>
+      <div class="legend-item"><div class="swatch" style="background:#ebebeb;border:1px solid #ddd"></div>Gap</div>
+    </div>
+    <div class="bar" id="bar"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Size</th><th>Start</th><th>End</th><th>Center</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="verification" id="verification"></div>
+
+  </div>
+</div>
+
+<script>
+  function findBestPacking(length, mode) {
+    const maxN50 = Math.floor(length / 50);
+    let best = null;
+
+    for (let n50 = 0; n50 <= maxN50; n50++) {
+      const space = length - n50 * 50;
+      const n30 = Math.floor(space / 30);
+      const remainder = space - n30 * 30;
+      const total = n50 + n30;
+      if (total === 0) continue;
+
+      const gapUnit = remainder / total;
+      const c = { n50, n30, remainder, total, gapUnit };
+
+      if (!best) { best = c; continue; }
+
+      const better = mode === 'gap'
+        ? gapUnit < best.gapUnit - 1e-9 || (Math.abs(gapUnit - best.gapUnit) < 1e-9 && total < best.total)
+        : total < best.total || (total === best.total && gapUnit < best.gapUnit - 1e-9);
+
+      if (better) best = c;
+    }
+
+    return best;
+  }
+
+  function fmt(n, d = 4) { return n.toFixed(d); }
+
+  function calculate() {
+    const errorEl = document.getElementById('error');
+    const resultEl = document.getElementById('result');
+    errorEl.textContent = '';
+    resultEl.classList.remove('visible');
+
+    const length = parseFloat(document.getElementById('length').value);
+
+    if (isNaN(length)) { errorEl.textContent = 'Please enter a valid number.'; return; }
+    if (length <= 0)   { errorEl.textContent = 'Length must be a positive number.'; return; }
+    if (length < 30)   { errorEl.textContent = `Length ${length} is below the minimum item size (30). No items can be placed.`; return; }
+
+    const mode = document.getElementById('mode').value;
+    const { n50, n30, remainder, total, gapUnit } = findBestPacking(length, mode);
+    const edgeGap    = gapUnit / 2;
+    const itemsLen   = n50 * 50 + n30 * 30;
+    const coverage   = (itemsLen / length * 100).toFixed(2);
+    const modeLabel  = mode === 'gap' ? 'Min gap size' : 'Min item count';
+
+    // Stats
+    document.getElementById('stats').innerHTML = [
+      ['Optimization',   modeLabel],
+      ['Total length',   length],
+      ['Size-50 items',  `${n50}  (${n50 * 50} units)`],
+      ['Size-30 items',  `${n30}  (${n30 * 30} units)`],
+      ['Total items',    total],
+      ['Coverage',       `${itemsLen} / ${length}  (${coverage}%)`],
+      ['Remainder',      fmt(remainder, 6)],
+      ['Internal gap',   `${fmt(gapUnit, 6)}  (${total - 1} gaps between items)`],
+      ['Edge gap ×2',    `${fmt(edgeGap, 6)}  (start + end = 1 internal gap)`],
+    ].map(([l, v]) =>
+      `<div class="stat"><span class="stat-label">${l}</span><span class="stat-value">${v}</span></div>`
+    ).join('');
+
+    // Visual bar
+    const items = [...Array(n50).fill(50), ...Array(n30).fill(30)];
+    const bar = document.getElementById('bar');
+    bar.innerHTML = '';
+
+    const seg = (pct, cls) => {
+      const el = document.createElement('div');
+      el.style.cssText = `width:${pct}%;flex-shrink:0`;
+      el.className = cls;
+      bar.appendChild(el);
+    };
+
+    seg(edgeGap / length * 100, 'seg-gap');
+    items.forEach((size, i) => {
+      seg(size / length * 100, size === 50 ? 'seg-50' : 'seg-30');
+      seg((i < items.length - 1 ? gapUnit : edgeGap) / length * 100, 'seg-gap');
+    });
+
+    // Table
+    let cursor = edgeGap;
+    document.getElementById('tbody').innerHTML = items.map((size, i) => {
+      const start  = cursor;
+      const end    = cursor + size;
+      const center = (start + end) / 2;
+      cursor = end + gapUnit;
+      const chip = `<span class="chip chip-${size}"></span>`;
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${chip}${size}</td>
+        <td>${fmt(start)}</td>
+        <td>${fmt(end)}</td>
+        <td>${fmt(center)}</td>
+      </tr>`;
+    }).join('');
+
+    // Verification
+    const reconstructed = itemsLen + gapUnit * (total - 1) + edgeGap * 2;
+    document.getElementById('verification').textContent =
+      `Verification: ${itemsLen} + ${fmt(gapUnit, 6)}×${total - 1} + ${fmt(edgeGap, 6)}×2 = ${fmt(reconstructed, 6)}  [OK]`;
+
+    resultEl.classList.add('visible');
+  }
+
+  document.getElementById('length').addEventListener('keydown', e => {
+    if (e.key === 'Enter') calculate();
+  });
+</script>
+</body>
+</html>
